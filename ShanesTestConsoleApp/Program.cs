@@ -16,10 +16,14 @@ namespace ShanesTestConsoleApp
             { "Add user", new DelegateProcessExecutor(AddUser) },
             { "Add page", new DelegateProcessExecutor(AddPage) },
             { "Add user menu", new DelegateProcessExecutor(AddUserMenu) },
+            { "Remove user menu items by user", new DelegateProcessExecutor(RemoveUserMenuItemsByUser) },
+            { "Remove user menu items by page", new DelegateProcessExecutor(RemoveUserMenuItemsByPage) },
             { "View users", new DelegateProcessExecutor(ViewUsers) },
             { "View pages", new DelegateProcessExecutor(ViewPages) },
             { "View user menu items", new DelegateProcessExecutor(ViewUserMenuItems) },
             { "View users by page", new DelegateProcessExecutor(ViewUsersByPage) },
+            { "View all user menu items", new DelegateProcessExecutor(ViewAllUserMenuItems) },
+            { "Generate user menu items", new DelegateProcessExecutor(GenerateUserMenuItems) },
             { "Exit", new DelegateProcessExecutor(Exit) }
         };
 
@@ -221,7 +225,7 @@ namespace ShanesTestConsoleApp
             Main(new string[] { });
         }
 
-        private static User GetUser()
+        private static User GetUser(string getUserMessage = "\nWhat is the name of the user?  (e.g.: Fred Savage)\n")
         {
             using(DataContext context = new DataContext())
             {
@@ -230,7 +234,7 @@ namespace ShanesTestConsoleApp
 
                 do
                 {
-                    Console.WriteLine("\nWhat is the name of the user?  (e.g.: Fred Savage)\n");
+                    Console.WriteLine(getUserMessage);
                     userName = Console.ReadLine();
                     string[] names = userName.Split(' ');
                     user = context.Users.Where(u => u.FirstName == names[0] && u.LastName == names[1]).Include(u => u.UserMenus).ThenInclude(m => m.Page).FirstOrDefault();
@@ -242,7 +246,7 @@ namespace ShanesTestConsoleApp
             }            
         }
 
-        private static Page GetPage()
+        private static Page GetPage(string getPageMessage = "\nWhat is the name of the page? (e.g.: Home)\n")
         {
             using (DataContext context = new DataContext())
             {
@@ -251,7 +255,7 @@ namespace ShanesTestConsoleApp
 
                 do
                 {
-                    Console.WriteLine("\nWhat is the name of the page? (e.g.: Home)\n");
+                    Console.WriteLine(getPageMessage);
                     pageName = Console.ReadLine();
                     page = context.Pages.Where(p => p.Name == pageName).Include(p => p.UserMenus).ThenInclude(m => m.User).FirstOrDefault();
                     if (page == null)
@@ -272,6 +276,48 @@ namespace ShanesTestConsoleApp
             if (Int32.TryParse(strSqnc, out sequence) && sequence > 0)
                 return sequence;
             return GetUserMenuOrderSequence(++attempts);
+        }
+
+        private static void RemoveUserMenuItemsByUser()
+        {
+            User user = GetUser("\nEnter the name of the user whose user menu items are to be removed.\n");
+            using(DataContext context = new DataContext())
+            {
+                if (user.UserMenus.Count > 0)
+                {
+                    context.UserMenus.RemoveRange(user.UserMenus);
+                    context.SaveChanges();
+                    Console.WriteLine($"\nUser menus for {user.FirstName} {user.LastName} have been removed.");
+                }
+                else
+                    Console.WriteLine($"\n The user, {user.FirstName} {user.LastName} doesn't have any user menu items to remove.");
+
+                Console.WriteLine("\nPress any key to continue...");
+                Console.ReadKey();
+                Console.Clear();
+                Main(new string[] { });
+            }
+        }
+
+        private static void RemoveUserMenuItemsByPage()
+        {
+            Page page = GetPage("\nEnter the name of the page of which the associated user menu items are to be removed.\n");
+            using(DataContext context = new DataContext())
+            {
+                if (page.UserMenus.Count > 0)
+                {
+                    context.UserMenus.RemoveRange(page.UserMenus);
+                    context.SaveChanges();
+                    Console.WriteLine($"\nUser menus associated with the {page.Name} page have been removed.");
+                }
+                else
+                    Console.WriteLine($"\nTheir are no user menu items associated with the {page.Name} page.");
+
+                Console.WriteLine("\nPress any key to continue...");
+                Console.ReadKey();
+                Console.Clear();
+                Main(new string[] { });
+            }
         }
 
         private static void ViewUserMenuItems()
@@ -310,6 +356,71 @@ namespace ShanesTestConsoleApp
             Console.ReadKey();
             Console.Clear();
             Main(new string[] { });
+        }
+
+        private static void ViewAllUserMenuItems()
+        {
+            Console.Clear();
+            using(DataContext context = new DataContext())
+            {
+                List<UserMenu> userMenus = context.UserMenus.OrderBy(m => m.User.FirstName).ThenBy(m => m.User.LastName).ThenBy(m => m.Sequence).Include(m => m.User).Include(m => m.Page).ToList();
+                if (userMenus.Count > 0)
+                    for (int i = 1; i <= userMenus.Count; i++)
+                        Console.WriteLine($"{i}.) User: {userMenus[i - 1].User.FirstName} {userMenus[i - 1].User.LastName}, Page: {userMenus[i - 1].Page.Name}, Sequence: {userMenus[i - 1].Sequence}");
+                else
+                    Console.WriteLine("There are currently no user menu items");
+            }
+            Console.WriteLine("\nPress any key to continue...\n");
+            Console.ReadKey();
+            Console.Clear();
+            Main(new string[] { });
+        }
+
+        private static void GenerateUserMenuItems()
+        {
+            Random rdm = new Random();
+            using(DataContext context = new DataContext())
+            {
+                int userCount = context.Users.Count();
+                int pageCount = context.Pages.Count();
+                int currentMenuItemCount = context.UserMenus.Count();
+                int userMenuItemCount = 0;
+                try { userMenuItemCount = rdm.Next(1, (userCount * pageCount) - currentMenuItemCount); }
+                catch (ArgumentOutOfRangeException)
+                {
+                    Console.WriteLine("\nIt is not possible to generate more user menu items at this time.\nPress any key to continue...\n");
+                    Console.ReadKey();
+                    Console.Clear();
+                    Main(new string[] { });
+                }
+
+                List<Page> pages = context.Pages.ToList();
+                List<User> users = context.Users.ToList();
+                User user = null;
+                Page page = null;
+                int sequence = 0;
+                UserMenu newUserMenu = null;
+                bool isValid = false;
+
+                for(int i = 0; i < userMenuItemCount; i++)
+                {
+                    do
+                    {
+                        user = users[rdm.Next(0, users.Count)];
+                        page = pages[rdm.Next(0, pages.Count)];
+                        sequence = context.UserMenus.Where(m => m.UserId == user.UserId).OrderByDescending(m => m.Sequence).FirstOrDefault()?.Sequence ?? 0;
+                        newUserMenu = new UserMenu { UserId = user.UserId, PageId = page.PageId, Sequence = ++sequence };
+                        isValid = UserMenu.Validate(newUserMenu);
+                    } while (!isValid);
+                    context.UserMenus.Add(newUserMenu);
+                    context.SaveChanges();
+                }
+                Console.WriteLine($"\nUser menus items created: {userMenuItemCount}\n\nPress any key to continue...\n");
+                Console.ReadKey();
+                Console.Clear();
+                Main(new string[] { });
+
+            }
         }
 
         private static void Exit()
