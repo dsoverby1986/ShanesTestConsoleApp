@@ -2,7 +2,7 @@
 
 2.) Restore packages
 
-3.) If there is a (LocalDb)\MSSQLLocalDB instance of Sql Server available, continue on to step 4, otherwise create a (LocalDb)\MSSQLLocalDB instance or change the connection string in App.config
+3.) If there is a (LocalDb)\MSSQLLocalDB instance of Sql Server available, continue on to step 4, otherwise create a (LocalDb)\MSSQLLocalDB instance or change the connection string in DataContext.cs
 
 4.) Open package manager console
 

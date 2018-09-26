@@ -122,8 +122,11 @@ namespace ShanesTestConsoleApp
             using (DataContext context = new DataContext())
                 users = context.Users.ToList();
 
-            foreach(User user in users)
-                Console.WriteLine($"{user.FirstName} {user.LastName}");
+            if (users.Count > 0)
+                foreach (User user in users)
+                    Console.WriteLine($"{user.FirstName} {user.LastName}");
+            else
+                Console.WriteLine("There are currently no users.");
 
             Console.WriteLine("\nPress any key to continue...");
             Console.ReadLine();
@@ -181,8 +184,11 @@ namespace ShanesTestConsoleApp
             using(DataContext context = new DataContext())
                 pages = context.Pages.ToList();
 
-            foreach (Page page in pages)
-                Console.WriteLine($"{page.Name}");
+            if (pages.Count > 0)
+                foreach (Page page in pages)
+                    Console.WriteLine($"{page.Name}");
+            else
+                Console.WriteLine("There are currently no pages.");
 
             Console.WriteLine("\nPress any key to continue...");
             Console.ReadKey();
@@ -193,7 +199,15 @@ namespace ShanesTestConsoleApp
         private static void AddUserMenu()
         {
             User user = GetUser();
+
+            if (user == null)
+                Main(new string[] { });
+
             Page page = GetPage();
+
+            if (page == null)
+                Main(new string[] { });
+
             int sequence = GetUserMenuOrderSequence();
             UserMenu newUserMenu = new UserMenu { UserId = user.UserId, PageId = page.PageId, Sequence = sequence };
             bool isValid = UserMenu.Validate(newUserMenu);
@@ -229,20 +243,30 @@ namespace ShanesTestConsoleApp
         {
             using(DataContext context = new DataContext())
             {
-                User user = null;
-                string userName = string.Empty;
-
-                do
+                if(context.Users.Any())
                 {
-                    Console.WriteLine(getUserMessage);
-                    userName = Console.ReadLine();
-                    string[] names = userName.Split(' ');
-                    user = context.Users.Where(u => u.FirstName == names[0] && u.LastName == names[1]).Include(u => u.UserMenus).ThenInclude(m => m.Page).FirstOrDefault();
-                    if (user == null)
-                        Console.WriteLine("\nInvalid input. Try again.");
-                } while (user == null);
+                    User user = null;
+                    string userName = string.Empty;
 
-                return user;
+                    do
+                    {
+                        Console.WriteLine(getUserMessage);
+                        userName = Console.ReadLine();
+                        string[] names = userName.Split(' ');
+                        user = context.Users.Where(u => u.FirstName == names[0] && u.LastName == names[1]).Include(u => u.UserMenus).ThenInclude(m => m.Page).FirstOrDefault();
+                        if (user == null)
+                            Console.WriteLine("\nInvalid input. Try again.");
+                    } while (user == null);
+
+                    return user;
+                }
+                else
+                {
+                    Console.WriteLine("\nThere are currently no users.\n\nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    return null;
+                }
             }            
         }
 
@@ -250,19 +274,29 @@ namespace ShanesTestConsoleApp
         {
             using (DataContext context = new DataContext())
             {
-                Page page = null;
-                string pageName = string.Empty;
-
-                do
+                if (context.Pages.Any())
                 {
-                    Console.WriteLine(getPageMessage);
-                    pageName = Console.ReadLine();
-                    page = context.Pages.Where(p => p.Name == pageName).Include(p => p.UserMenus).ThenInclude(m => m.User).FirstOrDefault();
-                    if (page == null)
-                        Console.WriteLine("\nInvalid input. Try again.");
-                } while (page == null);
+                    Page page = null;
+                    string pageName = string.Empty;
 
-                return page;
+                    do
+                    {
+                        Console.WriteLine(getPageMessage);
+                        pageName = Console.ReadLine();
+                        page = context.Pages.Where(p => p.Name == pageName).Include(p => p.UserMenus).ThenInclude(m => m.User).FirstOrDefault();
+                        if (page == null)
+                            Console.WriteLine("\nInvalid input. Try again.");
+                    } while (page == null);
+
+                    return page;
+                }
+                else
+                {
+                    Console.WriteLine("\nThere are currently no pages.\n\nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    return null;
+                }
             }
         }
 
@@ -281,6 +315,10 @@ namespace ShanesTestConsoleApp
         private static void RemoveUserMenuItemsByUser()
         {
             User user = GetUser("\nEnter the name of the user whose user menu items are to be removed.\n");
+
+            if (user == null)
+                Main(new string[] { });
+
             using(DataContext context = new DataContext())
             {
                 if (user.UserMenus.Count > 0)
@@ -302,6 +340,10 @@ namespace ShanesTestConsoleApp
         private static void RemoveUserMenuItemsByPage()
         {
             Page page = GetPage("\nEnter the name of the page of which the associated user menu items are to be removed.\n");
+
+            if (page == null)
+                Main(new string[] { });
+
             using(DataContext context = new DataContext())
             {
                 if (page.UserMenus.Count > 0)
@@ -324,6 +366,10 @@ namespace ShanesTestConsoleApp
         {
             Console.Clear();
             User user = GetUser();
+
+            if (user == null)
+                Main(new string[] { });
+
             if (user.UserMenus.Count > 0)
             {
                 Console.WriteLine($"\nThese are the user menu items for {user.FirstName} {user.LastName}, in sequence:\n");
@@ -343,6 +389,10 @@ namespace ShanesTestConsoleApp
         {
             Console.Clear();
             Page page = GetPage();
+
+            if (page == null)
+                Main(new string[] { });
+
             if (page.UserMenus.Count > 0)
             {
                 Console.WriteLine($"\nThese are the users that have user menu items associated with the {page.Name} page:\n");
@@ -388,10 +438,11 @@ namespace ShanesTestConsoleApp
                 try { userMenuItemCount = rdm.Next(1, (userCount * pageCount) - currentMenuItemCount); }
                 catch (ArgumentOutOfRangeException)
                 {
-                    Console.WriteLine("\nIt is not possible to generate more user menu items at this time.\nPress any key to continue...\n");
+                    Console.WriteLine("\nIt is not possible to generate more user menu items at this time.\n\nPress any key to continue...\n");
                     Console.ReadKey();
                     Console.Clear();
                     Main(new string[] { });
+                    return;
                 }
 
                 List<Page> pages = context.Pages.ToList();
